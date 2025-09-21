@@ -141,6 +141,18 @@ config_local.ini
 output/
 downloads/
 
+# Release packages and large files
+*.zip
+*.exe
+*.msi
+release/
+test_exe/
+
+# Build artifacts
+build/
+dist/
+*.spec
+
 # IDE files
 .vscode/
 .idea/

@@ -167,29 +167,35 @@ class StreamScribeCompactUI:
         """初始化UI"""
         # 获取配置
         self.config = get_config()
-        
+
+        # 设置初始化标志，防止初始化时触发配置保存
+        self._initializing = True
+
         # 设置主题
         self.setup_theme()
-        
+
         # 创建主窗口
         self.setup_window()
-        
+
         # 创建任务管理器
         self.manager = TaskManager()
 
         # 设置调试回调
         self.manager.set_debug_callback(self.log_debug_message)
-        
+
         # 初始化变量
         self.processing = False
         self.current_transcript_file = None
         self.processed_results = []
         self.selected_files = []
         self.debug_window = None
-        
+
         # 创建界面
         self.create_interface()
-        
+
+        # 初始化完成，允许配置保存
+        self._initializing = False
+
         # 启动主题监控
         self.start_theme_monitoring()
     
@@ -697,7 +703,10 @@ class StreamScribeCompactUI:
     def on_force_transcribe_changed(self):
         """强制转录模式改变时的回调"""
         force_mode = self.force_transcribe_var.get()
-        self.config.set_force_transcribe_mode(force_mode)
+
+        # 只在非初始化状态时保存配置，避免初始化时覆盖带注释的配置文件
+        if not getattr(self, '_initializing', False):
+            self.config.set_force_transcribe_mode(force_mode)
 
         if force_mode:
             self.force_transcribe_info.configure(
