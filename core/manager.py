@@ -21,13 +21,32 @@ class TaskManager:
         """初始化任务管理器"""
         self.config = get_config()
         self.logger = logging.getLogger(__name__)
-        
+        self.debug_callback = None  # 调试回调函数
+
         # 初始化平台处理器
         self.platform_handlers = {
             'youtube': YouTubeHandler(),
             'bilibili': BilibiliHandler(),
             'local': LocalFileHandler()
         }
+
+        # 设置调试回调到所有处理器
+        for handler in self.platform_handlers.values():
+            if hasattr(handler, 'set_debug_callback'):
+                handler.set_debug_callback(self._debug_log)
+
+    def set_debug_callback(self, callback):
+        """设置调试回调函数"""
+        self.debug_callback = callback
+        # 传递给所有处理器
+        for handler in self.platform_handlers.values():
+            if hasattr(handler, 'set_debug_callback'):
+                handler.set_debug_callback(self._debug_log)
+
+    def _debug_log(self, message):
+        """内部调试日志方法"""
+        if self.debug_callback:
+            self.debug_callback(message)
     
     def process_url(self, url, status_callback=None):
         """

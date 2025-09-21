@@ -680,9 +680,13 @@ class StreamScribeUI:
         # 本地文件区域
         self.file_input_frame = ctk.CTkFrame(input_frame, fg_color="transparent")
 
+        # 动态生成支持格式的显示文本
+        audio_formats = ', '.join(self.config.supported_audio_formats)
+        video_formats = ', '.join(self.config.supported_video_formats)
+
         file_label = ctk.CTkLabel(
             self.file_input_frame,
-            text="本地文件 (支持音频: mp3, wav | 视频: mp4, avi, mkv):",
+            text=f"本地文件 (支持音频: {audio_formats} | 视频: {video_formats}):",
             font=ctk.CTkFont(size=12)
         )
         file_label.pack(anchor="w", pady=(0, 5))

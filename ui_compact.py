@@ -17,8 +17,96 @@ import tkinter.filedialog as filedialog
 import platform
 import os
 import threading
+import datetime
 from core.config import get_config
 from core.manager import TaskManager
+
+
+class DebugWindow:
+    """调试窗口类"""
+
+    def __init__(self, parent):
+        """初始化调试窗口"""
+        self.parent = parent
+        self.window = None
+        self.text_widget = None
+        self.is_visible = False
+
+    def show(self):
+        """显示调试窗口"""
+        if self.window is None:
+            self._create_window()
+
+        if not self.is_visible:
+            self.window.deiconify()
+            self.is_visible = True
+
+    def hide(self):
+        """隐藏调试窗口"""
+        if self.window and self.is_visible:
+            self.window.withdraw()
+            self.is_visible = False
+
+    def _create_window(self):
+        """创建调试窗口"""
+        self.window = ctk.CTkToplevel(self.parent)
+        self.window.title("StreamScribe - 调试窗口")
+        self.window.geometry("800x600")
+
+        # 设置窗口位置（在主窗口右侧）
+        parent_x = self.parent.winfo_x()
+        parent_width = self.parent.winfo_width()
+        self.window.geometry(f"+{parent_x + parent_width + 10}+{self.parent.winfo_y()}")
+
+        # 创建文本框
+        self.text_widget = ctk.CTkTextbox(
+            self.window,
+            font=ctk.CTkFont(family="Consolas", size=10),
+            wrap="word"
+        )
+        self.text_widget.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # 添加清除按钮
+        clear_button = ctk.CTkButton(
+            self.window,
+            text="清除日志",
+            command=self.clear_log,
+            width=100,
+            height=30
+        )
+        clear_button.pack(pady=(0, 10))
+
+        # 绑定关闭事件
+        self.window.protocol("WM_DELETE_WINDOW", self.on_close)
+
+        # 初始化时隐藏窗口
+        self.window.withdraw()
+
+    def add_message(self, message):
+        """添加调试信息"""
+        if self.text_widget:
+            timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+            formatted_message = f"[{timestamp}] {message}\n"
+
+            self.text_widget.insert("end", formatted_message)
+            self.text_widget.see("end")  # 自动滚动到底部
+
+    def clear_log(self):
+        """清除日志"""
+        if self.text_widget:
+            self.text_widget.delete("1.0", "end")
+
+    def on_close(self):
+        """窗口关闭时的处理"""
+        self.hide()
+        # 同时取消调试模式勾选
+        if hasattr(self.parent, 'debug_mode_var'):
+            # 这里需要通过父窗口来访问
+            for widget in self.parent.winfo_children():
+                if hasattr(widget, 'debug_mode_var'):
+                    widget.debug_mode_var.set(False)
+                    widget.on_debug_mode_changed()
+                    break
 
 
 def detect_system_theme():
@@ -88,12 +176,16 @@ class StreamScribeCompactUI:
         
         # 创建任务管理器
         self.manager = TaskManager()
+
+        # 设置调试回调
+        self.manager.set_debug_callback(self.log_debug_message)
         
         # 初始化变量
         self.processing = False
         self.current_transcript_file = None
         self.processed_results = []
         self.selected_files = []
+        self.debug_window = None
         
         # 创建界面
         self.create_interface()
@@ -396,6 +488,28 @@ class StreamScribeCompactUI:
         )
         self.force_transcribe_info.pack(side="left", padx=(5, 0))
 
+        # 调试模式
+        debug_frame = ctk.CTkFrame(left_frame, fg_color="transparent")
+        debug_frame.pack(fill="x", pady=(5, 0))
+
+        self.debug_mode_var = ctk.BooleanVar(value=False)
+        self.debug_mode_checkbox = ctk.CTkCheckBox(
+            debug_frame,
+            text="调试模式",
+            variable=self.debug_mode_var,
+            command=self.on_debug_mode_changed,
+            font=ctk.CTkFont(size=11)
+        )
+        self.debug_mode_checkbox.pack(side="left")
+
+        self.debug_mode_info = ctk.CTkLabel(
+            debug_frame,
+            text="显示后台命令执行窗口",
+            font=ctk.CTkFont(size=9),
+            text_color="gray"
+        )
+        self.debug_mode_info.pack(side="left", padx=(5, 0))
+
         # 右侧：控制按钮
         right_frame = ctk.CTkFrame(control_frame, fg_color="transparent")
         right_frame.pack(side="right", padx=(6, 12), pady=12)
@@ -596,6 +710,23 @@ class StreamScribeCompactUI:
                 text_color="gray"
             )
 
+    def on_debug_mode_changed(self):
+        """调试模式改变时的回调"""
+        debug_mode = self.debug_mode_var.get()
+
+        if debug_mode:
+            self.show_debug_window()
+            self.debug_mode_info.configure(
+                text="✅ 调试窗口已打开",
+                text_color="#1f8b4c"
+            )
+        else:
+            self.hide_debug_window()
+            self.debug_mode_info.configure(
+                text="显示后台命令执行窗口",
+                text_color="gray"
+            )
+
     # ==================== 占位符相关方法 ====================
 
     def _set_url_placeholder(self):
@@ -706,10 +837,15 @@ class StreamScribeCompactUI:
 
     def select_files(self):
         """选择文件"""
+        # 动态生成文件类型过滤器
+        audio_exts = [f"*.{fmt}" for fmt in self.config.supported_audio_formats]
+        video_exts = [f"*.{fmt}" for fmt in self.config.supported_video_formats]
+        all_exts = audio_exts + video_exts
+
         filetypes = [
-            ("所有支持的文件", "*.mp3;*.wav;*.mp4;*.avi;*.mkv;*.mov;*.flv"),
-            ("音频文件", "*.mp3;*.wav"),
-            ("视频文件", "*.mp4;*.avi;*.mkv;*.mov;*.flv"),
+            ("所有支持的文件", ";".join(all_exts)),
+            ("音频文件", ";".join(audio_exts)),
+            ("视频文件", ";".join(video_exts)),
             ("所有文件", "*.*")
         ]
 
@@ -974,6 +1110,22 @@ class StreamScribeCompactUI:
         self.copy_button.configure(state="disabled")
         self.current_transcript_file = None
         self.processed_results = []
+
+    def show_debug_window(self):
+        """显示调试窗口"""
+        if self.debug_window is None:
+            self.debug_window = DebugWindow(self.root)
+        self.debug_window.show()
+
+    def hide_debug_window(self):
+        """隐藏调试窗口"""
+        if self.debug_window:
+            self.debug_window.hide()
+
+    def log_debug_message(self, message):
+        """记录调试信息"""
+        if self.debug_window and self.debug_mode_var.get():
+            self.debug_window.add_message(message)
 
     def run(self):
         """运行应用"""

@@ -18,6 +18,16 @@ class WhisperTranscriber:
         """初始化转录器"""
         self.config = get_config()
         self.logger = logging.getLogger(__name__)
+        self.debug_callback = None
+
+    def set_debug_callback(self, callback):
+        """设置调试回调函数"""
+        self.debug_callback = callback
+
+    def _debug_log(self, message):
+        """调试日志"""
+        if self.debug_callback:
+            self.debug_callback(message)
     
     def run_whisper(self, audio_path, output_dir=None):
         """
@@ -52,9 +62,14 @@ class WhisperTranscriber:
             self.logger.info(f"执行 whisper-ctranslate2 命令: {' '.join(command)}")
 
             # 打印完整命令供用户复制测试
+            command_str = ' '.join(command)
             print(f"\n🔍 执行 whisper-ctranslate2 转录:")
-            print(f"📋 {' '.join(command)}")
+            print(f"📋 {command_str}")
             print()
+
+            # 发送到调试窗口
+            self._debug_log(f"🔍 执行 whisper-ctranslate2 转录:")
+            self._debug_log(f"📋 {command_str}")
 
             # 设置环境变量解决编码问题
             env = os.environ.copy()

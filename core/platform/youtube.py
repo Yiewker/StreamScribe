@@ -22,6 +22,18 @@ class YouTubeHandler:
         self.config = get_config()
         self.logger = logging.getLogger(__name__)
         self.transcriber = WhisperTranscriber()
+        self.debug_callback = None
+
+    def set_debug_callback(self, callback):
+        """设置调试回调函数"""
+        self.debug_callback = callback
+        # 同时设置给转录器
+        self.transcriber.set_debug_callback(callback)
+
+    def _debug_log(self, message):
+        """调试日志"""
+        if self.debug_callback:
+            self.debug_callback(message)
     
     def get_transcript(self, url, status_callback=None):
         """
@@ -158,12 +170,19 @@ class YouTubeHandler:
                 ])
 
                 # 打印完整命令供用户复制测试
+                command_str = ' '.join(command)
                 if attempt == 0:  # 只在第一次尝试时打印
                     print(f"\n🔍 执行 yt-dlp 获取视频信息:")
-                    print(f"📋 {' '.join(command)}")
+                    print(f"📋 {command_str}")
                     print()
+
+                    # 发送到调试窗口
+                    self._debug_log(f"🔍 执行 yt-dlp 获取视频信息:")
+                    self._debug_log(f"📋 {command_str}")
                 elif attempt > 0:
-                    print(f"🔄 重试第 {attempt + 1} 次...")
+                    retry_msg = f"🔄 重试第 {attempt + 1} 次..."
+                    print(retry_msg)
+                    self._debug_log(retry_msg)
 
                 result = subprocess.run(
                     command,

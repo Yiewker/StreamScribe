@@ -29,3 +29,10 @@ Traceback (most recent call last):
 _tkinter.TclError: bad text index "0"
 
 这个失败了，原因是点击 清除  按钮
+
+
+
+BUG3：
+处理本地文件模式只支持：
+*.mp3;*.wav*.mp4; *.avi;*.mkv;*.mov;*.flv
+而我还希望支持m4a，事实上这个whisper确实支持m4a，只是咱们的前端不支持，有点遗憾
