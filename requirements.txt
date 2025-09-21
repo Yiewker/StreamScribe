@@ -1,0 +1,35 @@
+# GUI 框架
+customtkinter>=5.2.0
+
+# 配置文件处理
+configparser
+
+# 系统和进程管理
+psutil
+
+# 文件和路径处理
+pathlib
+
+# 正则表达式（内置模块，但明确列出）
+# re
+
+# 子进程管理（内置模块）
+# subprocess
+
+# 时间处理（内置模块）
+# datetime
+
+# 操作系统接口（内置模块）
+# os
+
+# 系统特定参数和函数（内置模块）
+# sys
+
+# 线程支持（内置模块）
+# threading
+
+# 日志记录（内置模块）
+# logging
+
+# 注意：whisper-ctranslate2 需要在专门的虚拟环境中安装
+# 不在此处列出，因为它将通过外部虚拟环境调用
