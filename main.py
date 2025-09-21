@@ -82,7 +82,9 @@ def main():
     print("检查依赖项...")
     if not check_dependencies():
         print("\n依赖项检查失败，程序退出。")
-        input("按回车键退出...")
+        # 在GUI模式下不使用input()，避免PyInstaller打包问题
+        import tkinter.messagebox as msgbox
+        msgbox.showerror("依赖项检查失败", "依赖项检查失败，程序无法启动。\n请检查配置文件中的路径设置。")
         sys.exit(1)
     
     print("依赖项检查通过。")
@@ -102,7 +104,9 @@ def main():
     except Exception as e:
         print(f"\n程序运行时发生错误: {e}")
         logging.error(f"程序运行时发生错误: {e}", exc_info=True)
-        input("按回车键退出...")
+        # 在GUI模式下不使用input()，避免PyInstaller打包问题
+        import tkinter.messagebox as msgbox
+        msgbox.showerror("程序错误", f"程序运行时发生错误:\n{e}\n\n请查看日志文件获取详细信息。")
         sys.exit(1)
     
     print("程序正常退出。")
