@@ -185,37 +185,79 @@ def create_release_package():
         print("✅ 复制 docs 目录")
     
     # 创建启动说明
-    readme_content = """# StreamScribe 绿色版
+    readme_content = """# StreamScribe 绿色版使用指南
 
-## 使用说明
+## 快速开始
 
-1. 双击 `StreamScribe.exe` 启动程序
-2. 首次运行会自动创建配置文件 `config.ini` 和 `config_gpu.ini`
-3. 根据需要修改 `config.ini` 配置文件中的路径设置
-4. 如需GPU加速，可将 `config_gpu.ini` 重命名为 `config.ini` 使用
+1. **启动程序** - 双击 `StreamScribe.exe` 启动程序
+2. **自动配置** - 首次运行会自动创建配置文件
+3. **配置工具路径** - 根据提示配置外部工具路径
+4. **开始使用** - 享受AI视频转录服务
 
 ## 配置文件说明
 
-- `config.ini` - 主配置文件（CPU模式，首次运行自动创建）
-- `config_gpu.ini` - GPU配置示例（GPU加速模式，首次运行自动创建）
+程序首次运行会自动创建两个配置文件：
+- `config.ini` - 主配置文件（CPU模式）
+- `config_gpu.ini` - GPU配置示例（GPU加速模式）
+
+## 工具路径配置
+
+程序需要以下外部工具，请根据实际安装位置修改 `config.ini` 中的路径：
+
+### 必需工具
+1. **yt-dlp** - YouTube视频下载工具
+   - 下载地址: https://github.com/yt-dlp/yt-dlp/releases
+   - 配置项: `yt_dlp_path = ./tools/yt-dlp.exe`
+
+2. **whisper-ctranslate2** - AI转录工具
+   - 安装命令: `pip install whisper-ctranslate2`
+   - 配置项: `whisper_script_path = ./tools/whisper_env/Scripts/whisper-ctranslate2.exe`
+
+### 可选工具
+3. **BBDown** - Bilibili视频下载工具（可选）
+   - 下载地址: https://github.com/nilaoda/BBDown/releases
+   - 配置项: `bbdown_path = ./tools/BBDown.exe`
+
+## 推荐目录结构
+
+```
+StreamScribe/
+├── StreamScribe.exe          # 主程序
+├── config.ini               # 配置文件
+├── tools/                   # 工具目录
+│   ├── yt-dlp.exe
+│   ├── BBDown.exe
+│   └── whisper_env/         # Python虚拟环境
+├── output/                  # 输出目录
+└── temp/                    # 临时目录
+```
 
 ## 系统要求
 
 - Windows 10/11 (64位)
 - 至少 4GB 内存
 - 网络连接（用于下载视频和AI模型）
+- Python 3.8+ （用于whisper-ctranslate2）
 
 ## 注意事项
 
 - 本程序为绿色版，无需安装，可直接运行
 - 首次使用时会自动下载必要的AI模型
 - 建议将程序放在有写入权限的目录中
-- 配置文件会在首次运行时自动创建，无需手动准备
+- 工具路径配置错误时程序仍可启动，使用时会有相应提示
+
+## 故障排除
+
+1. **程序启动但工具路径警告** - 正常现象，请按提示配置工具路径
+2. **无法下载视频** - 检查yt-dlp或BBDown路径配置
+3. **无法转录音频** - 检查whisper-ctranslate2安装和路径配置
+4. **权限错误** - 确保程序有写入权限
 
 ## 更多信息
 
 - 项目主页: https://github.com/Yiewker/StreamScribe
 - 问题反馈: https://github.com/Yiewker/StreamScribe/issues
+- 使用教程: https://github.com/Yiewker/StreamScribe/wiki
 """
     
     with open(release_dir / "使用说明.txt", 'w', encoding='utf-8') as f:

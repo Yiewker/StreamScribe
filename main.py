@@ -25,37 +25,65 @@ except ImportError as e:
 
 
 def check_dependencies():
-    """检查依赖项是否满足"""
+    """检查基本依赖项是否满足（绿色版模式：只检查必要项）"""
     config = get_config()
-    
-    # 检查 yt-dlp 是否存在
-    if not os.path.exists(config.yt_dlp_path):
-        print(f"错误: yt-dlp 不存在于指定路径: {config.yt_dlp_path}")
-        print("请检查 config.ini 中的 yt_dlp_path 设置")
-        return False
-    
-    # 检查 Whisper 虚拟环境是否存在
-    whisper_python = os.path.join(config.whisper_venv_path, 'Scripts', 'python.exe')
-    if not os.path.exists(whisper_python):
-        print(f"错误: Whisper 虚拟环境不存在于指定路径: {config.whisper_venv_path}")
-        print("请检查 config.ini 中的 whisper_venv_path 设置")
-        return False
-    
+
+    # 对于绿色版，我们只检查目录创建权限，不检查外部工具路径
+    # 外部工具路径将在实际使用时进行检查和提示
+
     # 检查输出目录是否可写
     try:
         Path(config.output_dir).mkdir(parents=True, exist_ok=True)
+        print(f"✅ 输出目录已准备: {config.output_dir}")
     except Exception as e:
         print(f"错误: 无法创建输出目录 {config.output_dir}: {e}")
         return False
-    
+
     # 检查临时目录是否可写
     try:
         Path(config.temp_dir).mkdir(parents=True, exist_ok=True)
+        print(f"✅ 临时目录已准备: {config.temp_dir}")
     except Exception as e:
         print(f"错误: 无法创建临时目录 {config.temp_dir}: {e}")
         return False
-    
+
+    # 检查外部工具路径（仅警告，不阻止启动）
+    check_external_tools_with_warnings(config)
+
     return True
+
+def check_external_tools_with_warnings(config):
+    """检查外部工具路径并给出警告（不阻止程序启动）"""
+    warnings = []
+
+    # 检查 yt-dlp 是否存在
+    if not os.path.exists(config.yt_dlp_path):
+        warnings.append(f"⚠️  yt-dlp 未找到: {config.yt_dlp_path}")
+    else:
+        print(f"✅ yt-dlp 已找到: {config.yt_dlp_path}")
+
+    # 检查 BBDown 是否存在
+    if hasattr(config, 'bbdown_path') and config.bbdown_path:
+        if not os.path.exists(config.bbdown_path):
+            warnings.append(f"⚠️  BBDown 未找到: {config.bbdown_path}")
+        else:
+            print(f"✅ BBDown 已找到: {config.bbdown_path}")
+
+    # 检查 Whisper 虚拟环境是否存在
+    whisper_python = os.path.join(config.whisper_venv_path, 'Scripts', 'python.exe')
+    if not os.path.exists(whisper_python):
+        warnings.append(f"⚠️  Whisper 环境未找到: {config.whisper_venv_path}")
+    else:
+        print(f"✅ Whisper 环境已找到: {config.whisper_venv_path}")
+
+    if warnings:
+        print("\n📋 配置提醒:")
+        for warning in warnings:
+            print(f"   {warning}")
+        print("\n💡 提示: 程序可以正常启动，请在使用相关功能前配置正确的工具路径。")
+        print("   您可以在程序界面中修改配置文件路径设置。")
+    else:
+        print("\n✅ 所有外部工具路径配置正确！")
 
 
 def setup_environment():

@@ -33,13 +33,19 @@ class Config:
 
     def create_default_config(self):
         """创建默认配置文件"""
-        # 默认配置内容
+        # 默认配置内容（使用通用路径）
         default_config = {
+            'general': {
+                'force_transcribe_mode': 'false',
+                'auto_detect_language': 'true',
+                'enable_gpu_acceleration': 'false',
+                'max_concurrent_tasks': '2'
+            },
             'paths': {
-                'yt_dlp_path': 'J:/app/yt-dlp/yt-dlp.exe',
-                'bbdown_path': 'J:/app/BBDown/BBDown.exe',
-                'whisper_venv_path': 'J:/app/whisper_env',
-                'whisper_script_path': 'J:/app/whisper_env/Scripts/whisper-ctranslate2.exe',
+                'yt_dlp_path': './tools/yt-dlp.exe',
+                'bbdown_path': './tools/BBDown.exe',
+                'whisper_venv_path': './tools/whisper_env',
+                'whisper_script_path': './tools/whisper_env/Scripts/whisper-ctranslate2.exe',
                 'output_dir': './output',
                 'temp_dir': './temp'
             },
@@ -114,13 +120,19 @@ class Config:
         if os.path.exists(gpu_config_file):
             return  # 如果已存在则不覆盖
 
-        # GPU配置内容
+        # GPU配置内容（使用通用路径）
         gpu_config = {
+            'general': {
+                'force_transcribe_mode': 'false',
+                'auto_detect_language': 'true',
+                'enable_gpu_acceleration': 'true',
+                'max_concurrent_tasks': '2'
+            },
             'paths': {
-                'yt_dlp_path': 'J:/app/yt-dlp/yt-dlp.exe',
-                'bbdown_path': 'J:/app/BBDown/BBDown.exe',
-                'whisper_venv_path': 'J:/app/whisper_env',
-                'whisper_script_path': 'J:/app/whisper_env/Scripts/whisper-ctranslate2.exe',
+                'yt_dlp_path': './tools/yt-dlp.exe',
+                'bbdown_path': './tools/BBDown.exe',
+                'whisper_venv_path': './tools/whisper_env',
+                'whisper_script_path': './tools/whisper_env/Scripts/whisper-ctranslate2.exe',
                 'output_dir': './output',
                 'temp_dir': './temp'
             },
