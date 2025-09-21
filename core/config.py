@@ -24,11 +24,166 @@ class Config:
         self.load_config()
     
     def load_config(self):
-        """加载配置文件"""
+        """加载配置文件，如果不存在则创建默认配置"""
         if not os.path.exists(self.config_file):
-            raise FileNotFoundError(f"配置文件 {self.config_file} 不存在")
-        
+            print(f"配置文件 {self.config_file} 不存在，正在创建默认配置...")
+            self.create_default_config()
+
         self.config.read(self.config_file, encoding='utf-8')
+
+    def create_default_config(self):
+        """创建默认配置文件"""
+        # 默认配置内容
+        default_config = {
+            'paths': {
+                'yt_dlp_path': 'J:/app/yt-dlp/yt-dlp.exe',
+                'bbdown_path': 'J:/app/BBDown/BBDown.exe',
+                'whisper_venv_path': 'J:/app/whisper_env',
+                'whisper_script_path': 'J:/app/whisper_env/Scripts/whisper-ctranslate2.exe',
+                'output_dir': './output',
+                'temp_dir': './temp'
+            },
+            'whisper': {
+                'model': 'medium',
+                'language': 'auto',
+                'device': 'cpu',
+                'compute_type': 'int8',
+                'beam_size': '5',
+                'best_of': '5',
+                'temperature': '0.0',
+                'condition_on_previous_text': 'true',
+                'initial_prompt': '',
+                'word_timestamps': 'false',
+                'prepend_punctuations': '"\'¿([{-',
+                'append_punctuations': '"\'.,。,!?:;)}]',
+                'max_line_width': '1000',
+                'max_line_count': '1',
+                'highlight_words': 'false'
+            },
+            'download': {
+                'max_retries': '3',
+                'retry_delay': '5',
+                'timeout': '300',
+                'proxy': '',
+                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            'ui': {
+                'theme': 'system',
+                'window_width': '800',
+                'window_height': '600',
+                'font_size': '12'
+            },
+            'formats': {
+                'supported_video_formats': 'mp4,avi,mkv,mov,wmv,flv,webm,m4v,3gp,ts,mts,m2ts',
+                'supported_audio_formats': 'mp3,wav,m4a,aac,flac,ogg,wma,opus',
+                'preferred_video_quality': 'best',
+                'preferred_audio_quality': 'best'
+            },
+            'advanced': {
+                'max_workers': '4',
+                'chunk_size': '1024',
+                'enable_logging': 'true',
+                'log_level': 'INFO',
+                'auto_cleanup': 'true',
+                'preserve_temp_files': 'false'
+            }
+        }
+
+        # 创建配置对象
+        config = configparser.ConfigParser()
+
+        # 添加所有配置节和键值对
+        for section_name, section_data in default_config.items():
+            config.add_section(section_name)
+            for key, value in section_data.items():
+                config.set(section_name, key, value)
+
+        # 写入配置文件
+        with open(self.config_file, 'w', encoding='utf-8') as f:
+            config.write(f)
+
+        print(f"✅ 默认配置文件已创建: {self.config_file}")
+
+        # 如果是主配置文件，同时创建GPU配置示例
+        if self.config_file == 'config.ini':
+            self.create_gpu_config_example()
+
+    def create_gpu_config_example(self):
+        """创建GPU配置示例文件"""
+        gpu_config_file = 'config_gpu.ini'
+        if os.path.exists(gpu_config_file):
+            return  # 如果已存在则不覆盖
+
+        # GPU配置内容
+        gpu_config = {
+            'paths': {
+                'yt_dlp_path': 'J:/app/yt-dlp/yt-dlp.exe',
+                'bbdown_path': 'J:/app/BBDown/BBDown.exe',
+                'whisper_venv_path': 'J:/app/whisper_env',
+                'whisper_script_path': 'J:/app/whisper_env/Scripts/whisper-ctranslate2.exe',
+                'output_dir': './output',
+                'temp_dir': './temp'
+            },
+            'whisper': {
+                'model': 'large-v2',
+                'language': 'auto',
+                'device': 'cuda',
+                'compute_type': 'float16',
+                'beam_size': '5',
+                'best_of': '5',
+                'temperature': '0.0',
+                'condition_on_previous_text': 'true',
+                'initial_prompt': '',
+                'word_timestamps': 'false',
+                'prepend_punctuations': '"\'¿([{-',
+                'append_punctuations': '"\'.,。,!?:;)}]',
+                'max_line_width': '1000',
+                'max_line_count': '1',
+                'highlight_words': 'false'
+            },
+            'download': {
+                'max_retries': '3',
+                'retry_delay': '5',
+                'timeout': '300',
+                'proxy': '',
+                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            'ui': {
+                'theme': 'system',
+                'window_width': '800',
+                'window_height': '600',
+                'font_size': '12'
+            },
+            'formats': {
+                'supported_video_formats': 'mp4,avi,mkv,mov,wmv,flv,webm,m4v,3gp,ts,mts,m2ts',
+                'supported_audio_formats': 'mp3,wav,m4a,aac,flac,ogg,wma,opus',
+                'preferred_video_quality': 'best',
+                'preferred_audio_quality': 'best'
+            },
+            'advanced': {
+                'max_workers': '4',
+                'chunk_size': '1024',
+                'enable_logging': 'true',
+                'log_level': 'INFO',
+                'auto_cleanup': 'true',
+                'preserve_temp_files': 'false'
+            }
+        }
+
+        # 创建配置对象
+        config = configparser.ConfigParser()
+
+        # 添加所有配置节和键值对
+        for section_name, section_data in gpu_config.items():
+            config.add_section(section_name)
+            for key, value in section_data.items():
+                config.set(section_name, key, value)
+
+        # 写入配置文件
+        with open(gpu_config_file, 'w', encoding='utf-8') as f:
+            config.write(f)
+
+        print(f"✅ GPU配置示例已创建: {gpu_config_file}")
     
     def get(self, section, key, fallback=None):
         """

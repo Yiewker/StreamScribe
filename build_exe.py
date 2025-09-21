@@ -43,8 +43,6 @@ block_cipher = None
 
 # 数据文件和资源
 datas = [
-    ('config.ini', '.'),
-    ('config_gpu.ini', '.'),
     ('icon.png', '.'),
     ('docs', 'docs'),
 ]
@@ -169,10 +167,8 @@ def create_release_package():
         print("❌ 找不到exe文件")
         return False
     
-    # 复制必要的配置文件
+    # 复制必要的文档文件
     files_to_copy = [
-        "config.ini",
-        "config_gpu.ini", 
         "README.md",
         "LICENSE",
         "VERSION"
@@ -194,9 +190,14 @@ def create_release_package():
 ## 使用说明
 
 1. 双击 `StreamScribe.exe` 启动程序
-2. 首次运行会自动创建配置文件
-3. 根据需要修改 `config.ini` 配置文件
-4. 如需GPU加速，可参考 `config_gpu.ini` 配置
+2. 首次运行会自动创建配置文件 `config.ini` 和 `config_gpu.ini`
+3. 根据需要修改 `config.ini` 配置文件中的路径设置
+4. 如需GPU加速，可将 `config_gpu.ini` 重命名为 `config.ini` 使用
+
+## 配置文件说明
+
+- `config.ini` - 主配置文件（CPU模式，首次运行自动创建）
+- `config_gpu.ini` - GPU配置示例（GPU加速模式，首次运行自动创建）
 
 ## 系统要求
 
@@ -209,6 +210,7 @@ def create_release_package():
 - 本程序为绿色版，无需安装，可直接运行
 - 首次使用时会自动下载必要的AI模型
 - 建议将程序放在有写入权限的目录中
+- 配置文件会在首次运行时自动创建，无需手动准备
 
 ## 更多信息
 
