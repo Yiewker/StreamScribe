@@ -165,7 +165,6 @@ class YouTubeHandler:
                     '--referer', 'https://www.youtube.com/',
                     '--sleep-interval', '1',
                     '--max-sleep-interval', '3',
-                    '--extractor-args', 'youtube:player_client=web,mweb',
                     '--no-check-certificate'
                 ])
 
@@ -591,7 +590,6 @@ class YouTubeHandler:
                     '--sleep-interval', '1',
                     '--max-sleep-interval', '3',
                     '--retries', '3',
-                    '--extractor-args', 'youtube:player_client=web,mweb',
                     '--no-check-certificate'
                 ])
 
