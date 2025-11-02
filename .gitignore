@@ -171,3 +171,9 @@ Thumbs.db
 
 # Windows specific
 desktop.ini
+
+
+# 杂项
+tests/
+test_exe/
+release/
