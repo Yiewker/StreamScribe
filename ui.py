@@ -395,9 +395,9 @@ class StreamScribeUI:
         self.model_menu = ctk.CTkOptionMenu(
             model_container,
             variable=self.model_var,
-            values=["tiny", "base", "small", "medium", "large-v2", "large-v3"],
+            values=["tiny", "base", "small", "medium", "large-v2", "large-v3", "large-v3-turbo", "belle-whisper-v3-zh-punct"],
             command=self.on_model_changed,
-            width=120,
+            width=200,
             height=30
         )
         self.model_menu.pack(side="left")
@@ -432,6 +432,28 @@ class StreamScribeUI:
             text_color="gray"
         )
         self.force_transcribe_info.pack(side="left", padx=(5, 0))
+
+        # SRT输出格式
+        srt_frame = ctk.CTkFrame(left_frame, fg_color="transparent")
+        srt_frame.pack(fill="x", pady=(5, 0))
+
+        self.output_srt_var = ctk.BooleanVar(value=self.config.whisper_output_format_srt)
+        self.output_srt_checkbox = ctk.CTkCheckBox(
+            srt_frame,
+            text="输出SRT格式",
+            variable=self.output_srt_var,
+            command=self.on_output_srt_changed,
+            font=ctk.CTkFont(size=11)
+        )
+        self.output_srt_checkbox.pack(side="left")
+
+        self.output_srt_info = ctk.CTkLabel(
+            srt_frame,
+            text="不勾选则输出TXT格式",
+            font=ctk.CTkFont(size=9),
+            text_color="gray"
+        )
+        self.output_srt_info.pack(side="left", padx=(5, 0))
 
         # 右侧：控制按钮
         right_frame = ctk.CTkFrame(settings_frame, fg_color="transparent")
@@ -856,6 +878,25 @@ class StreamScribeUI:
                 text_color="gray"
             )
 
+    def on_output_srt_changed(self):
+        """SRT输出格式改变时的回调"""
+        output_srt = self.output_srt_var.get()
+
+        # 保存到配置文件
+        self.config.set_output_format_srt(output_srt)
+
+        # 更新说明文本的颜色来提示用户
+        if output_srt:
+            self.output_srt_info.configure(
+                text="✅ 已启用：输出SRT格式",
+                text_color="#1f8b4c"  # 绿色
+            )
+        else:
+            self.output_srt_info.configure(
+                text="已禁用：输出TXT格式",
+                text_color="gray"
+            )
+
     def get_model_info(self, model):
         """获取模型信息描述"""
         model_info = {
@@ -863,7 +904,9 @@ class StreamScribeUI:
             'small': '量化: int8_float16 | 速度: 较快 | 准确度: 好 | 显存: 中等',
             'medium': '量化: float16 | 速度: 中等 | 准确度: 很好 | 显存: 中等',
             'large-v2': '量化: float16 | 速度: 慢 | 准确度: 极好 | 显存: 高',
-            'large-v3': '量化: float16 | 速度: 慢 | 准确度: 最好 | 显存: 高'
+            'large-v3': '量化: float16 | 速度: 慢 | 准确度: 最好 | 显存: 高',
+            'large-v3-turbo': '量化: int8_float16 | 速度: 优秀⚡ | 显存: 1.2GB | 耗时: 23秒',
+            'belle-whisper-v3-zh-punct': '量化: int8_float16 | 速度: 较慢 | 准确度: 优秀✨ | 显存: 2.7GB | 耗时: 55秒'
         }
         return model_info.get(model, '未知模型')
 

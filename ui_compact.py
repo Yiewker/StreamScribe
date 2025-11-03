@@ -456,9 +456,9 @@ class StreamScribeCompactUI:
         self.model_menu = ctk.CTkOptionMenu(
             model_container,
             variable=self.model_var,
-            values=["tiny", "base", "small", "medium", "large-v2", "large-v3"],
+            values=["tiny", "base", "small", "medium", "large-v2", "large-v3", "large-v3-turbo", "belle-whisper-v3-zh-punct"],
             command=self.on_model_changed,
-            width=100,
+            width=180,
             height=26
         )
         self.model_menu.pack(side="left", padx=(8, 0))
@@ -493,6 +493,28 @@ class StreamScribeCompactUI:
             text_color="gray"
         )
         self.force_transcribe_info.pack(side="left", padx=(5, 0))
+
+        # SRT输出格式
+        srt_frame = ctk.CTkFrame(left_frame, fg_color="transparent")
+        srt_frame.pack(fill="x", pady=(5, 0))
+
+        self.output_srt_var = ctk.BooleanVar(value=self.config.whisper_output_format_srt)
+        self.output_srt_checkbox = ctk.CTkCheckBox(
+            srt_frame,
+            text="输出SRT格式",
+            variable=self.output_srt_var,
+            command=self.on_output_srt_changed,
+            font=ctk.CTkFont(size=11)
+        )
+        self.output_srt_checkbox.pack(side="left")
+
+        self.output_srt_info = ctk.CTkLabel(
+            srt_frame,
+            text="不勾选则输出TXT格式",
+            font=ctk.CTkFont(size=9),
+            text_color="gray"
+        )
+        self.output_srt_info.pack(side="left", padx=(5, 0))
 
         # 调试模式
         debug_frame = ctk.CTkFrame(left_frame, fg_color="transparent")
@@ -719,6 +741,25 @@ class StreamScribeCompactUI:
                 text_color="gray"
             )
 
+    def on_output_srt_changed(self):
+        """SRT输出格式改变时的回调"""
+        output_srt = self.output_srt_var.get()
+
+        # 只在非初始化状态时保存配置
+        if not getattr(self, '_initializing', False):
+            self.config.set_output_format_srt(output_srt)
+
+        if output_srt:
+            self.output_srt_info.configure(
+                text="✅ 已启用：输出SRT格式",
+                text_color="#1f8b4c"
+            )
+        else:
+            self.output_srt_info.configure(
+                text="已禁用：输出TXT格式",
+                text_color="gray"
+            )
+
     def on_debug_mode_changed(self):
         """调试模式改变时的回调"""
         debug_mode = self.debug_mode_var.get()
@@ -792,7 +833,9 @@ class StreamScribeCompactUI:
             "small": "速度: 快 | 准确度: 好 | 显存: 中等",
             "medium": "速度: 中等 | 准确度: 很好 | 显存: 中高",
             "large-v2": "速度: 慢 | 准确度: 极好 | 显存: 高",
-            "large-v3": "速度: 慢 | 准确度: 最佳 | 显存: 高"
+            "large-v3": "速度: 慢 | 准确度: 最佳 | 显存: 高",
+            "large-v3-turbo": "速度: 优秀⚡ | 准确度: 很好 | 显存: 1.2GB | 耗时: 23秒",
+            "belle-whisper-v3-zh-punct": "速度: 较慢 | 准确度: 优秀✨ | 显存: 2.7GB | 耗时: 55秒"
         }
         return model_info.get(model, "未知模型")
 

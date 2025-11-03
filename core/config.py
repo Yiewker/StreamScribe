@@ -11,17 +11,19 @@ from pathlib import Path
 
 class Config:
     """配置管理类"""
-    
+
     def __init__(self, config_file='config.ini'):
         """
         初始化配置管理器
-        
+
         Args:
             config_file (str): 配置文件路径，默认为 'config.ini'
         """
         self.config_file = config_file
         self.config = configparser.ConfigParser()
+        self._tools_paths = None  # 缓存从tools_path.txt读取的路径
         self.load_config()
+        self._load_tools_paths()  # 加载工具路径
     
     def load_config(self):
         """加载配置文件，如果不存在则创建默认配置"""
@@ -30,6 +32,30 @@ class Config:
             self.create_default_config()
 
         self.config.read(self.config_file, encoding='utf-8')
+
+    def _load_tools_paths(self):
+        """从tools/tools_path.txt读取工具路径"""
+        tools_path_file = Path('tools/tools_path.txt')
+        self._tools_paths = {}
+
+        if tools_path_file.exists():
+            try:
+                with open(tools_path_file, 'r', encoding='utf-8') as f:
+                    lines = f.readlines()
+                    # 第一行：whisper-ctranslate2.exe
+                    if len(lines) > 0:
+                        self._tools_paths['whisper_exe'] = lines[0].strip()
+                    # 第二行：yt-dlp.exe
+                    if len(lines) > 1:
+                        self._tools_paths['yt_dlp'] = lines[1].strip()
+                    # 第三行：BBDown.exe
+                    if len(lines) > 2:
+                        self._tools_paths['bbdown'] = lines[2].strip()
+                print(f"✅ 已从 tools_path.txt 加载工具路径")
+            except Exception as e:
+                print(f"⚠️ 读取 tools_path.txt 失败: {e}")
+        else:
+            print(f"⚠️ tools_path.txt 不存在，将使用配置文件中的路径")
 
     def create_default_config(self):
         """创建默认配置文件（带详细注释）"""
@@ -332,17 +358,27 @@ preserve_temp_files = false
     # 便捷方法：获取路径相关配置
     @property
     def yt_dlp_path(self):
-        """获取 yt-dlp 可执行文件路径"""
+        """获取 yt-dlp 可执行文件路径（优先从tools_path.txt读取）"""
+        if self._tools_paths and 'yt_dlp' in self._tools_paths:
+            return self._tools_paths['yt_dlp']
         return self.get('paths', 'yt_dlp_path')
 
     @property
     def bbdown_path(self):
-        """获取 BBDown 可执行文件路径"""
+        """获取 BBDown 可执行文件路径（优先从tools_path.txt读取）"""
+        if self._tools_paths and 'bbdown' in self._tools_paths:
+            return self._tools_paths['bbdown']
         return self.get('paths', 'bbdown_path')
 
     @property
     def whisper_venv_path(self):
         """获取 Whisper 虚拟环境路径"""
+        # 如果从tools_path.txt读取到了whisper_exe，提取其目录作为venv路径
+        if self._tools_paths and 'whisper_exe' in self._tools_paths:
+            whisper_exe = self._tools_paths['whisper_exe']
+            # 从路径中提取venv路径（去掉Scripts\whisper-ctranslate2.exe部分）
+            venv_path = str(Path(whisper_exe).parent.parent)
+            return venv_path
         return self.get('paths', 'whisper_venv_path')
     
     @property
@@ -389,14 +425,9 @@ preserve_temp_files = false
         return self.get('whisper', 'initial_prompt', '以下是普通话的简体中文。')
 
     @property
-    def whisper_batched(self):
-        """获取是否启用批处理推理"""
-        return self.getboolean('whisper', 'batched', True)
-
-    @property
-    def whisper_batch_size(self):
-        """获取批处理大小"""
-        return self.getint('whisper', 'batch_size', 32)
+    def whisper_output_format_srt(self):
+        """获取是否输出SRT格式（默认为True）"""
+        return self.getboolean('whisper', 'output_format_srt', True)
 
     @property
     def whisper_compute_type(self):
@@ -434,10 +465,26 @@ preserve_temp_files = false
             'small': 'int8_float16',
             'medium': 'float16',
             'large-v2': 'float16',
-            'large-v3': 'float16'
+            'large-v3': 'float16',
+            'large-v3-turbo': 'int8_float16',  # 新增：速度优秀
+            'belle-whisper-v3-zh-punct': 'int8_float16'  # 新增：质量优秀
         }
 
         return model_compute_map.get(model, 'int8')
+
+    def get_model_directory(self, model):
+        """
+        获取自定义模型的目录路径（仅用于belle模型）
+
+        Args:
+            model (str): 模型名称
+
+        Returns:
+            str: 模型目录路径，如果不是自定义模型则返回None
+        """
+        if model == 'belle-whisper-v3-zh-punct':
+            return r'J:\Users\ccd\Desktop\projects\asr\Belle-whisper-large-models\Belle-whisper-v3-zh-punct-ct2'
+        return None
 
     def get_available_models(self):
         """
@@ -446,7 +493,7 @@ preserve_temp_files = false
         Returns:
             list: 可用的模型列表
         """
-        return ['base', 'small', 'medium', 'large-v2', 'large-v3']
+        return ['base', 'small', 'medium', 'large-v2', 'large-v3', 'large-v3-turbo', 'belle-whisper-v3-zh-punct']
 
     @property
     def supported_audio_formats(self):
@@ -512,6 +559,13 @@ preserve_temp_files = false
     def set_force_transcribe_mode(self, enabled):
         """设置强制转录模式"""
         self.config.set('general', 'force_transcribe_mode', str(enabled).lower())
+        self.save()
+
+    def set_output_format_srt(self, enabled):
+        """设置是否输出SRT格式"""
+        if not self.config.has_section('whisper'):
+            self.config.add_section('whisper')
+        self.config.set('whisper', 'output_format_srt', str(enabled).lower())
         self.save()
 
     def save(self):

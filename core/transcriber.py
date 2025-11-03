@@ -160,38 +160,49 @@ class WhisperTranscriber:
         Returns:
             list: 命令参数列表
         """
-        # 获取虚拟环境中的 whisper-ctranslate2 可执行文件
-        venv_path = self.config.whisper_venv_path
-        whisper_exe = os.path.join(venv_path, 'Scripts', 'whisper-ctranslate2.exe')
+        # 获取whisper-ctranslate2可执行文件路径（优先从tools_path.txt读取）
+        if hasattr(self.config, '_tools_paths') and self.config._tools_paths and 'whisper_exe' in self.config._tools_paths:
+            whisper_exe = self.config._tools_paths['whisper_exe']
+        else:
+            venv_path = self.config.whisper_venv_path
+            whisper_exe = os.path.join(venv_path, 'Scripts', 'whisper-ctranslate2.exe')
 
         # 验证可执行文件存在
         if not os.path.exists(whisper_exe):
             raise FileNotFoundError(f"whisper-ctranslate2 可执行文件不存在: {whisper_exe}")
 
+        # 获取当前模型
+        current_model = self.config.whisper_model
+
+        # 检查是否是自定义模型（需要使用model_directory参数）
+        model_directory = self.config.get_model_directory(current_model)
+
         # 构建基础命令
-        command = [
-            whisper_exe,
-            audio_path,
-            '--model', self.config.whisper_model,
-            '--output_format', self.config.whisper_output_format,
-            '--output_dir', output_dir
-        ]
+        command = [whisper_exe, audio_path]
 
-        # 性能优化选项（从配置文件读取）
-        # 1. 批处理推理 - 2x-4x 速度提升
-        if self.config.whisper_batched:
-            command.extend(['--batched', 'True'])
-            command.extend(['--batch_size', str(self.config.whisper_batch_size)])
+        # 如果是自定义模型，使用model_directory参数
+        if model_directory:
+            command.extend(['--model_directory', model_directory])
+        else:
+            command.extend(['--model', current_model])
 
-        # 2. 量化优化（根据模型自动选择最佳量化类型）
-        compute_type = self.config.get_compute_type_for_model(self.config.whisper_model)
+        # 根据配置决定输出格式
+        if self.config.whisper_output_format_srt:
+            command.extend(['--output_format', 'srt'])
+        else:
+            command.extend(['--output_format', 'txt'])
+
+        command.extend(['--output_dir', output_dir])
+
+        # 量化优化（根据模型自动选择最佳量化类型）
+        compute_type = self.config.get_compute_type_for_model(current_model)
         command.extend(['--compute_type', compute_type])
 
-        # 3. VAD 语音活动检测 - 跳过静音部分
+        # VAD 语音活动检测 - 跳过静音部分
         if self.config.whisper_vad_filter:
             command.extend(['--vad_filter', 'True'])
 
-        # 4. 设备选择（CPU 或 GPU）
+        # 设备选择（CPU 或 GPU）
         if self.config.whisper_device != 'cpu':
             command.extend(['--device', self.config.whisper_device])
             if self.config.whisper_device == 'cuda':
@@ -201,10 +212,10 @@ class WhisperTranscriber:
         if self.config.whisper_language != 'auto':
             # 将语言代码转换为 whisper-ctranslate2 支持的格式
             language_map = {
-                'zh': 'Chinese',
-                'zh-Hans': 'Chinese',
-                'zh-Hant': 'Chinese',
-                'en': 'English',
+                'zh': 'zh',
+                'zh-Hans': 'zh',
+                'zh-Hant': 'zh',
+                'en': 'en',
                 'auto': None
             }
             language = language_map.get(self.config.whisper_language, self.config.whisper_language)
