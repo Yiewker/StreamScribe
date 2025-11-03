@@ -7,6 +7,9 @@ AI转录模块
 import os
 import subprocess
 import logging
+import time
+import re
+import json
 from pathlib import Path
 from .config import get_config
 
@@ -28,18 +31,66 @@ class WhisperTranscriber:
         """调试日志"""
         if self.debug_callback:
             self.debug_callback(message)
-    
+
+    def _get_audio_duration(self, audio_path):
+        """
+        获取音频文件时长（秒）
+
+        Args:
+            audio_path (str): 音频文件路径
+
+        Returns:
+            float: 音频时长（秒），如果获取失败返回0
+        """
+        ffprobe_commands = [
+            'ffprobe',  # 系统 PATH 中的 ffprobe
+            'J:\\app\\ffmpeg\\bin\\ffprobe.exe',  # 常见的 ffprobe 位置
+        ]
+
+        for ffprobe_cmd in ffprobe_commands:
+            try:
+                command = [
+                    ffprobe_cmd,
+                    '-v', 'error',
+                    '-show_entries', 'format=duration',
+                    '-of', 'json',
+                    audio_path
+                ]
+
+                result = subprocess.run(
+                    command,
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+
+                if result.returncode == 0:
+                    data = json.loads(result.stdout)
+                    duration = float(data.get('format', {}).get('duration', 0))
+                    self.logger.info(f"音频时长: {duration:.2f}秒")
+                    return duration
+
+            except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.CalledProcessError, json.JSONDecodeError, ValueError):
+                continue
+
+        self.logger.warning("无法获取音频时长，将使用0作为默认值")
+        return 0.0
+
     def run_whisper(self, audio_path, output_dir=None):
         """
         使用 Whisper 转录音频文件
-        
+
         Args:
             audio_path (str): 音频文件路径
             output_dir (str): 输出目录，默认使用配置中的输出目录
-            
+
         Returns:
-            str: 生成的文稿文件路径
-            
+            dict: 包含以下键的字典:
+                - transcript_file (str): 生成的文稿文件路径
+                - audio_duration (float): 音频时长（秒）
+                - processing_time (float): 处理时间（秒）
+                - speed_ratio (float): 加速倍率（音频时长/处理时间）
+
         Raises:
             FileNotFoundError: 当音频文件或 Whisper 环境不存在时
             subprocess.CalledProcessError: 当 Whisper 执行失败时
@@ -48,14 +99,20 @@ class WhisperTranscriber:
         # 验证输入文件
         if not os.path.exists(audio_path):
             raise FileNotFoundError(f"音频文件不存在: {audio_path}")
-        
+
         # 设置输出目录
         if output_dir is None:
             output_dir = self.config.output_dir
-        
+
         # 确保输出目录存在
         Path(output_dir).mkdir(parents=True, exist_ok=True)
-        
+
+        # 获取音频时长
+        audio_duration = self._get_audio_duration(audio_path)
+
+        # 记录开始时间
+        start_time = time.time()
+
         # 使用 whisper-ctranslate2 进行转录
         try:
             command = self._build_whisper_command(audio_path, output_dir)
@@ -116,23 +173,10 @@ class WhisperTranscriber:
                 self.logger.error(f"错误信息: {stderr_msg}")
                 raise subprocess.CalledProcessError(result.returncode, command, result.stdout, result.stderr)
 
-            # 查找生成的文稿文件
+            # 从whisper输出中解析生成的文件名
             self.logger.info("whisper-ctranslate2 执行完成，开始查找生成的文稿文件")
 
-            # 先列出输出目录中的所有文件，帮助调试
-            self.logger.info(f"whisper执行后，输出目录 {output_dir} 中的文件:")
-            try:
-                output_path = Path(output_dir)
-                for file_path in sorted(output_path.iterdir(), key=lambda f: f.stat().st_mtime, reverse=True):
-                    if file_path.is_file():
-                        import time
-                        mtime = time.ctime(file_path.stat().st_mtime)
-                        size = file_path.stat().st_size
-                        self.logger.info(f"  - {file_path.name} (大小: {size} 字节, 修改时间: {mtime})")
-            except Exception as e:
-                self.logger.error(f"无法列出目录内容: {e}")
-
-            transcript_file = self._find_transcript_file(audio_path, output_dir)
+            transcript_file = self._parse_transcript_file_from_output(stdout_msg, stderr_msg, audio_path, output_dir)
 
             if not transcript_file or not os.path.exists(transcript_file):
                 self.logger.error("未找到生成的文稿文件")
@@ -140,9 +184,29 @@ class WhisperTranscriber:
                 self.logger.error(f"输出目录: {output_dir}")
                 raise Exception("未找到生成的文稿文件")
 
+            # 计算处理时间和加速倍率
+            end_time = time.time()
+            processing_time = end_time - start_time
+            speed_ratio = audio_duration / processing_time if processing_time > 0 and audio_duration > 0 else 0
+
             self.logger.info(f"转录完成，文稿文件: {transcript_file}")
-            return transcript_file
-            
+            self.logger.info(f"⏱️  处理时间: {processing_time:.2f}秒")
+            self.logger.info(f"🎵 音频时长: {audio_duration:.2f}秒")
+            self.logger.info(f"⚡ 加速倍率: {speed_ratio:.2f}x")
+
+            # 打印到控制台
+            print(f"\n✅ 转录完成！")
+            print(f"⏱️  处理时间: {processing_time:.2f}秒")
+            print(f"🎵 音频时长: {audio_duration:.2f}秒")
+            print(f"⚡ 加速倍率: {speed_ratio:.2f}x\n")
+
+            return {
+                'transcript_file': transcript_file,
+                'audio_duration': audio_duration,
+                'processing_time': processing_time,
+                'speed_ratio': speed_ratio
+            }
+
         except subprocess.TimeoutExpired:
             raise Exception("Whisper 执行超时")
         except Exception as e:
@@ -227,10 +291,57 @@ class WhisperTranscriber:
             command.extend(['--initial_prompt', self.config.whisper_initial_prompt])
 
         return command
-    
+
+    def _parse_transcript_file_from_output(self, stdout_msg, stderr_msg, audio_path, output_dir):
+        """
+        从whisper-ctranslate2的输出中解析生成的文件名
+
+        Args:
+            stdout_msg (str): 标准输出
+            stderr_msg (str): 标准错误输出
+            audio_path (str): 音频文件路径
+            output_dir (str): 输出目录
+
+        Returns:
+            str: 文稿文件路径，如果未找到则返回 None
+        """
+        # whisper-ctranslate2 通常会在输出中显示保存的文件路径
+        # 例如: "Saving output to /path/to/file.srt"
+        # 或者: "Writing to /path/to/file.txt"
+
+        combined_output = stdout_msg + "\n" + stderr_msg
+
+        # 尝试从输出中提取文件路径
+        # 常见模式：
+        # - "Saving output to <path>"
+        # - "Writing to <path>"
+        # - "Output written to <path>"
+        patterns = [
+            r'Saving output to\s+(.+)',
+            r'Writing to\s+(.+)',
+            r'Output written to\s+(.+)',
+            r'Saved to\s+(.+)',
+        ]
+
+        for pattern in patterns:
+            matches = re.findall(pattern, combined_output, re.IGNORECASE)
+            if matches:
+                # 取最后一个匹配（最新的输出）
+                file_path = matches[-1].strip()
+                # 移除可能的引号
+                file_path = file_path.strip('"\'')
+
+                if os.path.exists(file_path):
+                    self.logger.info(f"从whisper输出中解析到文件: {file_path}")
+                    return file_path
+
+        # 如果从输出中解析失败，使用原来的查找方法
+        self.logger.info("无法从whisper输出中解析文件路径，使用文件名匹配方法")
+        return self._find_transcript_file(audio_path, output_dir)
+
     def _find_transcript_file(self, audio_path, output_dir):
         """
-        查找生成的文稿文件
+        查找生成的文稿文件（基于文件名匹配）
 
         Args:
             audio_path (str): 原始音频文件路径
@@ -242,35 +353,29 @@ class WhisperTranscriber:
         # 获取音频文件的基础名称（不含扩展名）
         audio_name = Path(audio_path).stem
 
-        # 可能的文稿文件扩展名
-        possible_extensions = ['.txt', '.srt', '.vtt', '.json']
+        # 根据配置确定输出格式
+        if self.config.whisper_output_format_srt:
+            possible_extensions = ['.srt', '.txt', '.vtt', '.json']
+        else:
+            possible_extensions = ['.txt', '.srt', '.vtt', '.json']
 
         self.logger.info(f"查找转录文件，音频文件名: {audio_name}")
-        self.logger.info(f"输出目录: {output_dir}")
 
         # 方法1：精确匹配
         for ext in possible_extensions:
             transcript_file = os.path.join(output_dir, f"{audio_name}{ext}")
-            self.logger.info(f"检查文件: {transcript_file}")
-            self.logger.info(f"文件路径长度: {len(transcript_file)}")
 
-            # 检查文件是否存在
-            exists = os.path.exists(transcript_file)
-            self.logger.info(f"文件存在: {exists}")
-
-            if exists:
+            if os.path.exists(transcript_file):
                 self.logger.info(f"找到转录文件: {transcript_file}")
                 return transcript_file
             else:
                 # 尝试使用Path对象检查
                 try:
                     path_obj = Path(transcript_file)
-                    exists_path = path_obj.exists()
-                    self.logger.info(f"Path对象检查存在: {exists_path}")
-                    if exists_path:
+                    if path_obj.exists():
                         return str(path_obj)
-                except Exception as e:
-                    self.logger.info(f"Path对象检查失败: {e}")
+                except Exception:
+                    pass
 
         # 方法1.5：尝试不同的文件名变体（whisper可能会修改文件名）
         # whisper有时会截断长文件名或替换特殊字符
@@ -292,52 +397,29 @@ class WhisperTranscriber:
             if variant != audio_name:  # 避免重复检查
                 for ext in possible_extensions:
                     transcript_file = os.path.join(output_dir, f"{variant}{ext}")
-                    self.logger.info(f"检查变体文件: {transcript_file}")
                     if os.path.exists(transcript_file):
                         self.logger.info(f"找到变体转录文件: {transcript_file}")
                         return transcript_file
 
-        # 方法2：检查whisper可能生成的变体文件名
-        # whisper-ctranslate2有时会截断或修改文件名
+        # 方法2：查找最新的文本文件（仅限最近5分钟内生成的文件）
         output_path = Path(output_dir)
-        self.logger.info(f"尝试查找whisper可能生成的变体文件名")
-
-        # 尝试不同长度的文件名前缀
-        for prefix_len in [len(audio_name), len(audio_name) - 10, len(audio_name) - 20]:
-            if prefix_len > 10:  # 确保前缀足够长
-                prefix = audio_name[:prefix_len]
-                self.logger.info(f"尝试前缀: {prefix}")
-
-                for file_path in output_path.glob(f"{prefix}*.txt"):
-                    # 检查文件是否是最近生成的（5分钟内）
-                    import time
-                    if time.time() - file_path.stat().st_mtime < 300:
-                        self.logger.info(f"找到可能的转录文件: {file_path}")
-                        return str(file_path)
-
-        # 方法3：查找最新的文本文件（仅限最近5分钟内生成的文件）
-        self.logger.info("尝试查找最近生成的文本文件")
-        import time
         current_time = time.time()
         recent_files = []
 
-        for ext in ['.txt', '.srt', '.vtt']:
+        for ext in possible_extensions:
             for file_path in output_path.glob(f"*{ext}"):
                 file_mtime = file_path.stat().st_mtime
                 # 只考虑最近5分钟内修改的文件
                 if current_time - file_mtime < 300:  # 300秒 = 5分钟
                     recent_files.append(file_path)
-                    self.logger.info(f"发现最近文件: {file_path} (修改时间: {time.ctime(file_mtime)})")
 
         if recent_files:
             # 按修改时间排序，取最新的
             latest_file = max(recent_files, key=lambda f: f.stat().st_mtime)
-            self.logger.info(f"选择最新的最近文件: {latest_file}")
+            self.logger.info(f"找到最近生成的文件: {latest_file}")
             return str(latest_file)
-        else:
-            self.logger.info("未找到最近5分钟内生成的文本文件")
 
-        # 列出输出目录中的所有文件，帮助调试
+        # 如果还是找不到，记录错误
         self.logger.error(f"未找到转录文件，输出目录内容:")
         try:
             for file_path in output_path.iterdir():
@@ -380,13 +462,13 @@ class WhisperTranscriber:
 def transcribe_audio(audio_path, output_dir=None):
     """
     转录音频文件的便捷函数
-    
+
     Args:
         audio_path (str): 音频文件路径
         output_dir (str): 输出目录
-        
+
     Returns:
-        str: 生成的文稿文件路径
+        dict: 包含transcript_file, audio_duration, processing_time, speed_ratio的字典
     """
     transcriber = WhisperTranscriber()
     return transcriber.run_whisper(audio_path, output_dir)

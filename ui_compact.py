@@ -969,6 +969,10 @@ class StreamScribeCompactUI:
         self.root.after(0, clear_textbox)
 
         total_urls = len(urls)
+        # 用于累计处理时间和加速倍率
+        total_processing_time = 0
+        total_speed_ratio = 0
+        success_count = 0
 
         for i, url in enumerate(urls):
             try:
@@ -993,8 +997,15 @@ class StreamScribeCompactUI:
                             'file': transcript_file
                         })
 
-                        # 显示结果
+                        # 显示结果（不包含处理时间）
                         self.display_result(result.get('video_title', f'视频{i+1}'), content)
+
+                        # 累计处理时间和加速倍率
+                        if result.get('processing_time') is not None:
+                            total_processing_time += result['processing_time']
+                            success_count += 1
+                        if result.get('speed_ratio') is not None:
+                            total_speed_ratio += result['speed_ratio']
 
                 else:
                     error_msg = f"处理失败: {result.get('error', '未知错误')}"
@@ -1005,7 +1016,14 @@ class StreamScribeCompactUI:
                 self.update_textbox(f"\n=== 视频{i+1} ===\n{error_msg}\n")
 
         self.update_progress(1.0)
-        self.update_status(f"完成！处理了 {total_urls} 个视频")
+
+        # 构建状态消息，包含处理时间和加速倍率
+        status_msg = f"完成！处理了 {total_urls} 个视频"
+        if success_count > 0:
+            avg_speed_ratio = total_speed_ratio / success_count
+            status_msg += f"，⏱️  处理时间: {total_processing_time:.2f}秒 | ⚡ 加速倍率: {avg_speed_ratio:.2f}x"
+
+        self.update_status(status_msg)
         self.processing = False
         self.update_button_state(self.start_button, "normal")
 
@@ -1024,6 +1042,10 @@ class StreamScribeCompactUI:
         self.result_textbox.delete("1.0", "end")
 
         total_files = len(files)
+        # 用于累计处理时间和加速倍率
+        total_processing_time = 0
+        total_speed_ratio = 0
+        success_count = 0
 
         for i, file_path in enumerate(files):
             try:
@@ -1049,8 +1071,15 @@ class StreamScribeCompactUI:
                             'file': transcript_file
                         })
 
-                        # 显示结果
+                        # 显示结果（不包含处理时间）
                         self.display_result(filename, content)
+
+                        # 累计处理时间和加速倍率
+                        if result.get('processing_time') is not None:
+                            total_processing_time += result['processing_time']
+                            success_count += 1
+                        if result.get('speed_ratio') is not None:
+                            total_speed_ratio += result['speed_ratio']
 
                 else:
                     error_msg = f"处理失败: {result.get('error', '未知错误')}"
@@ -1063,7 +1092,14 @@ class StreamScribeCompactUI:
                 self.result_textbox.insert("end", f"\n=== {filename} ===\n{error_msg}\n")
 
         self.progress_bar.set(1.0)
-        self.update_status(f"完成！处理了 {total_files} 个文件")
+
+        # 构建状态消息，包含处理时间和加速倍率
+        status_msg = f"完成！处理了 {total_files} 个文件"
+        if success_count > 0:
+            avg_speed_ratio = total_speed_ratio / success_count
+            status_msg += f"，⏱️  处理时间: {total_processing_time:.2f}秒 | ⚡ 加速倍率: {avg_speed_ratio:.2f}x"
+
+        self.update_status(status_msg)
         self.processing = False
         self.start_button.configure(state="normal")
 

@@ -38,11 +38,11 @@ class YouTubeHandler:
     def get_transcript(self, url, status_callback=None):
         """
         获取 YouTube 视频的文稿
-        
+
         Args:
             url (str): YouTube 视频 URL
             status_callback (callable): 状态回调函数
-            
+
         Returns:
             dict: 处理结果
         """
@@ -51,7 +51,10 @@ class YouTubeHandler:
             'transcript_file': None,
             'error': None,
             'video_title': None,
-            'method': None  # 'subtitle' 或 'whisper'
+            'method': None,  # 'subtitle' 或 'whisper'
+            'processing_time': None,
+            'audio_duration': None,
+            'speed_ratio': None
         }
         
         try:
@@ -79,7 +82,11 @@ class YouTubeHandler:
                 if status_callback:
                     status_callback("正在使用 AI 转录音频...")
 
-                transcript_file = self._transcribe_audio(audio_file)
+                transcribe_result = self._transcribe_audio(audio_file)
+                transcript_file = transcribe_result['transcript_file']
+                result['processing_time'] = transcribe_result['processing_time']
+                result['audio_duration'] = transcribe_result['audio_duration']
+                result['speed_ratio'] = transcribe_result['speed_ratio']
             else:
                 # 正常模式：先检查字幕
                 if status_callback:
@@ -106,7 +113,11 @@ class YouTubeHandler:
                     if status_callback:
                         status_callback("正在使用 AI 转录音频...")
 
-                    transcript_file = self._transcribe_audio(audio_file)
+                    transcribe_result = self._transcribe_audio(audio_file)
+                    transcript_file = transcribe_result['transcript_file']
+                    result['processing_time'] = transcribe_result['processing_time']
+                    result['audio_duration'] = transcribe_result['audio_duration']
+                    result['speed_ratio'] = transcribe_result['speed_ratio']
 
                     # 清理临时音频文件
                     try:
@@ -670,7 +681,7 @@ class YouTubeHandler:
             audio_file (str): 音频文件路径
 
         Returns:
-            str: 文稿文件路径
+            dict: 包含transcript_file, processing_time, audio_duration, speed_ratio的字典
         """
         self.logger.info(f"开始转录音频文件: {audio_file}")
         self.logger.info(f"输出目录: {self.config.output_dir}")
@@ -684,9 +695,10 @@ class YouTubeHandler:
         self.logger.info(f"音频文件大小: {file_size} 字节")
 
         try:
-            transcript_file = self.transcriber.run_whisper(audio_file, self.config.output_dir)
-            self.logger.info(f"转录完成，生成文件: {transcript_file}")
-            return transcript_file
+            result = self.transcriber.run_whisper(audio_file, self.config.output_dir)
+            self.logger.info(f"转录完成，生成文件: {result['transcript_file']}")
+            self.logger.info(f"处理时间: {result['processing_time']:.2f}秒, 加速倍率: {result['speed_ratio']:.2f}x")
+            return result
         except Exception as e:
             self.logger.error(f"转录失败: {str(e)}")
             raise

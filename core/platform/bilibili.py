@@ -26,11 +26,11 @@ class BilibiliHandler:
     def get_transcript(self, url, status_callback=None):
         """
         获取B站视频的文稿
-        
+
         Args:
             url (str): B站视频链接
             status_callback (callable): 状态回调函数
-            
+
         Returns:
             dict: 处理结果
         """
@@ -39,7 +39,10 @@ class BilibiliHandler:
             'transcript_file': None,
             'error': None,
             'video_title': None,
-            'method': 'whisper'  # B站视频总是使用 whisper 转录
+            'method': 'whisper',  # B站视频总是使用 whisper 转录
+            'processing_time': None,
+            'audio_duration': None,
+            'speed_ratio': None
         }
         
         try:
@@ -88,16 +91,23 @@ class BilibiliHandler:
             # 使用 Whisper 转录
             if status_callback:
                 status_callback("正在使用 AI 转录音频...")
-            
-            transcript_file = self.transcriber.run_whisper(audio_file, self.config.output_dir)
-            
+
+            transcribe_result = self.transcriber.run_whisper(audio_file, self.config.output_dir)
+            transcript_file = transcribe_result['transcript_file']
+
+            # 记录处理信息
+            self.logger.info(f"处理时间: {transcribe_result['processing_time']:.2f}秒, 加速倍率: {transcribe_result['speed_ratio']:.2f}x")
+
             # 清理临时音频文件
             try:
                 os.remove(audio_file)
             except:
                 pass
-            
+
             result['transcript_file'] = transcript_file
+            result['processing_time'] = transcribe_result['processing_time']
+            result['audio_duration'] = transcribe_result['audio_duration']
+            result['speed_ratio'] = transcribe_result['speed_ratio']
             result['success'] = True
             
             if status_callback:

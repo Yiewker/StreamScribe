@@ -74,17 +74,24 @@ class LocalFileHandler:
             # 使用 Whisper 转录
             if status_callback:
                 status_callback("正在使用 AI 转录音频...")
-            
-            transcript_file = self.transcriber.run_whisper(audio_file, self.config.output_dir)
-            
+
+            transcribe_result = self.transcriber.run_whisper(audio_file, self.config.output_dir)
+            transcript_file = transcribe_result['transcript_file']
+
+            # 记录处理信息
+            self.logger.info(f"处理时间: {transcribe_result['processing_time']:.2f}秒, 加速倍率: {transcribe_result['speed_ratio']:.2f}x")
+
             # 如果提取了临时音频文件，清理它
             if audio_file != file_path:
                 try:
                     os.remove(audio_file)
                 except:
                     pass
-            
+
             result['transcript_file'] = transcript_file
+            result['processing_time'] = transcribe_result['processing_time']
+            result['audio_duration'] = transcribe_result['audio_duration']
+            result['speed_ratio'] = transcribe_result['speed_ratio']
             result['success'] = True
             
             if status_callback:
